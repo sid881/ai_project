@@ -1,0 +1,104 @@
+import numpy as np
+
+class AntColony:
+    def __init__(self, num_ants, num_nodes, pheromone_decay, alpha, beta):
+        self.num_ants = num_ants
+        self.num_nodes = num_nodes
+        self.pheromone_decay = pheromone_decay
+        self.alpha = alpha
+        self.beta = beta
+        self.pheromone_matrix = np.ones((num_nodes, num_nodes))
+        np.fill_diagonal(self.pheromone_matrix, 0)
+
+    def update_pheromones(self, delta_pheromones):
+        self.pheromone_matrix = (1 - self.pheromone_decay) * self.pheromone_matrix + delta_pheromones
+
+    def run(self, distances, max_iter):
+        best_path = None
+        best_path_length = np.inf
+
+        for iteration in range(max_iter):
+            all_paths = self.construct_solutions(distances)
+            delta_pheromones = self.calculate_pheromone_delta(all_paths, distances)
+            self.update_pheromones(delta_pheromones)
+
+            if iteration % 10 == 0:  # Print every 10 iterations
+                print(f"Iteration {iteration + 1}: Best Path Length = {best_path_length}")
+
+            # Update the best path if a shorter one is found
+            if min(all_paths.values()) < best_path_length:
+                best_path_length = min(all_paths.values())
+                best_path = min(all_paths, key=all_paths.get)
+
+        return best_path, best_path_length
+
+    def construct_solutions(self, distances):
+        all_paths = {}
+
+        for ant in range(self.num_ants):
+            path = self.construct_solution(distances)
+            path_length = self.calculate_path_length(path, distances)
+            all_paths[tuple(path)] = path_length
+
+        return all_paths
+
+    def construct_solution(self, distances):
+        start_node = np.random.randint(self.num_nodes)
+        path = [start_node]
+        visited = set([start_node])
+
+        while len(path) < self.num_nodes:
+            next_node = self.choose_next_node(distances, path[-1], visited)
+            path.append(next_node)
+            visited.add(next_node)
+
+        return path
+
+    def choose_next_node(self, distances, current_node, visited):
+        pheromone_values = self.pheromone_matrix[current_node] ** self.alpha
+        heuristic_values = (1 / (distances[current_node] + 1e-10)) ** self.beta
+
+        unvisited_nodes = list(set(range(self.num_nodes)) - visited)
+        probabilities = (pheromone_values * heuristic_values)[unvisited_nodes]
+        probabilities /= probabilities.sum()
+
+        next_node = np.random.choice(unvisited_nodes, p=probabilities)
+
+        return next_node
+
+    def calculate_path_length(self, path, distances):
+        length = 0
+        for i in range(len(path) - 1):
+            length += distances[path[i], path[i + 1]]
+        return length
+
+    def calculate_pheromone_delta(self, all_paths, distances):
+        delta_pheromones = np.zeros((self.num_nodes, self.num_nodes))
+
+        for path, path_length in all_paths.items():
+            for i in range(len(path) - 1):
+                delta_pheromones[path[i], path[i + 1]] += 1 / path_length
+
+        return delta_pheromones
+
+
+# Example Usage
+if __name__ == "__main__":
+    # Define parameters
+    num_ants = 5
+    num_nodes = 10
+    pheromone_decay = 0.1
+    alpha = 1.0
+    beta = 2.0
+    max_iter = 100
+
+    # Create a distance matrix (assuming a symmetric TSP)
+    distances = np.random.rand(num_nodes, num_nodes)
+    distances = (distances + distances.T) / 2  # Make it symmetric
+
+    # Initialize and run the ACO algorithm
+    aco = AntColony(num_ants, num_nodes, pheromone_decay, alpha, beta)
+    best_path, best_path_length = aco.run(distances, max_iter)
+
+    print("\nBest Path:", best_path)
+    print("Best Path Length:", best_path_length)

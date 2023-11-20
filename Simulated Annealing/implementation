@@ -1,0 +1,85 @@
+import numpy as np
+import math
+import random
+import matplotlib.pyplot as plt
+
+# Define the VRP parameters
+num_customers = 20
+depot = (0, 0)  # Depot coordinates
+customers = [(random.uniform(-10, 10), random.uniform(-10, 10)) for _ in range(num_customers)]
+
+def calculate_distance(point1, point2):
+    # Calculate Euclidean distance between two points
+    return math.sqrt((point1[0] - point2[0])**2 + (point1[1] - point2[1])**2)
+
+def total_distance(solution):
+    # Calculate the total travel distance for a solution
+    distance = calculate_distance(depot, solution[0])
+    for i in range(len(solution) - 1):
+        distance += calculate_distance(solution[i], solution[i + 1])
+    distance += calculate_distance(solution[-1], depot)
+    return distance
+
+def generate_initial_solution():
+    # Generate a random initial solution (route)
+    return [depot] + random.sample(customers, len(customers)) + [depot]
+
+def generate_neighboring_solution(solution):
+    # Generate a neighboring solution by swapping two random customers
+    new_solution = solution.copy()
+    index1, index2 = random.sample(range(1, len(solution) - 1), 2)  # Avoid swapping the depot
+    new_solution[index1], new_solution[index2] = new_solution[index2], new_solution[index1]
+    return new_solution
+
+def simulated_annealing_vrp(initial_solution, initial_temperature, cooling_rate, num_iterations):
+    current_solution = initial_solution
+    current_distance = total_distance(current_solution)
+
+    best_solution = current_solution
+    best_distance = current_distance
+
+    temperature = initial_temperature
+
+    distances = []  # To store the best distances over iterations
+
+    for iteration in range(num_iterations):
+        new_solution = generate_neighboring_solution(current_solution)
+        new_distance = total_distance(new_solution)
+
+        if random.uniform(0, 1) < acceptance_probability(current_distance, new_distance, temperature):
+            current_solution = new_solution
+            current_distance = new_distance
+
+        if new_distance < best_distance:
+            best_solution = new_solution
+            best_distance = new_distance
+
+        temperature *= cooling_rate
+
+        distances.append(best_distance)
+
+    return best_solution, best_distance, distances
+
+def acceptance_probability(old_distance, new_distance, temperature):
+    if new_distance < old_distance:
+        return 1.0
+    return math.exp((old_distance - new_distance) / temperature)
+
+# Example usage:
+initial_solution = generate_initial_solution()
+initial_temperature = 1000.0
+cooling_rate = 0.95
+num_iterations = 1000
+
+best_solution, best_distance, distances = simulated_annealing_vrp(initial_solution, initial_temperature, cooling_rate, num_iterations)
+
+# Plot the convergence
+plt.plot(distances)
+plt.xlabel('Iterations')
+plt.ylabel('Total Distance')
+plt.title('Convergence of Simulated Annealing for VRP')
+plt.show()
+
+# Print the best solution and its total distance
+print("Best Solution:", best_solution)
+print("Best Distance:", best_distance)

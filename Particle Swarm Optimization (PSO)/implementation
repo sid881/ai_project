@@ -1,0 +1,69 @@
+import numpy as np
+import matplotlib.pyplot as plt
+
+# Objective function (you can replace this with your own)
+def objective_function(x):
+    return sum(x**2)
+
+# Particle Swarm Optimization function
+def particle_swarm_optimization(obj_func, num_particles, num_dimensions, max_iterations, inertia_weight, cognitive_param, social_param):
+    # Initialize particles
+    particles = np.random.rand(num_particles, num_dimensions)
+    velocities = np.zeros_like(particles)
+
+    # Initialize personal best positions and values
+    personal_best_positions = particles.copy()
+    personal_best_values = np.apply_along_axis(obj_func, 1, particles)
+
+    # Initialize global best position and value
+    global_best_position = particles[np.argmin(personal_best_values)]
+    global_best_value = np.min(personal_best_values)
+
+    # Lists to store the best values at each iteration
+    best_values = []
+
+    # PSO main loop
+    for iteration in range(max_iterations):
+        # Update particle velocities and positions
+        r1, r2 = np.random.rand(num_particles, num_dimensions), np.random.rand(num_particles, num_dimensions)
+        velocities = (inertia_weight * velocities) + (cognitive_param * r1 * (personal_best_positions - particles)) + \
+                     (social_param * r2 * (global_best_position - particles))
+        particles = particles + velocities
+
+        # Evaluate new positions
+        current_values = np.apply_along_axis(obj_func, 1, particles)
+
+        # Update personal best
+        update_personal_best = current_values < personal_best_values
+        personal_best_values[update_personal_best] = current_values[update_personal_best]
+        personal_best_positions[update_personal_best] = particles[update_personal_best]
+
+        # Update global best
+        global_best_position = particles[np.argmin(personal_best_values)]
+        global_best_value = np.min(personal_best_values)
+
+        # Store the best value at each iteration
+        best_values.append(global_best_value)
+
+    return global_best_position, global_best_value, best_values
+
+# Fine-tuning parameters
+num_particles = 30
+num_dimensions = 2
+max_iterations = 100
+inertia_weight = 0.5
+cognitive_param = 2.0
+social_param = 2.0
+
+# Run PSO algorithm
+best_position, best_value, best_values_over_iterations = particle_swarm_optimization(objective_function, num_particles, num_dimensions, max_iterations, inertia_weight, cognitive_param, social_param)
+
+# Visualize the convergence
+plt.plot(best_values_over_iterations)
+plt.title('PSO Convergence')
+plt.xlabel('Iteration')
+plt.ylabel('Objective Value')
+plt.show()
+
+print("Best Position:", best_position)
+print("Best Value:", best_value)

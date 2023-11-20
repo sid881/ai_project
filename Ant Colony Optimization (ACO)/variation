@@ -1,0 +1,125 @@
+import numpy as np
+import matplotlib.pyplot as plt
+
+# Define the problem: Simplified representation of urban waste management
+# Each city location has an associated waste level that needs to be monitored by vehicles.
+
+num_cities = 10
+waste_levels = np.random.randint(1, 10, num_cities)
+
+# Ant Colony Optimization (ACO) Implementation
+
+class AntColony:
+    def __init__(self, num_ants, num_cities, pheromone_init=0.1, alpha=1, beta=2, evaporation_rate=0.5):
+        self.num_ants = num_ants
+        self.num_cities = num_cities
+        self.pheromone = np.full((num_cities, num_cities), pheromone_init)
+        self.alpha = alpha
+        self.beta = beta
+        self.evaporation_rate = evaporation_rate
+
+    def run(self, iterations):
+        best_path = None
+        best_path_length = float('inf')
+
+        for _ in range(iterations):
+            paths = self.generate_paths()
+            self.update_pheromone(paths)
+            current_best_path, current_best_length = self.get_best_path(paths)
+
+            if current_best_length < best_path_length:
+                best_path = current_best_path
+                best_path_length = current_best_length
+
+        return best_path, best_path_length
+
+    def generate_paths(self):
+        paths = []
+        for ant in range(self.num_ants):
+            path = self.generate_path()
+            paths.append((path, self.calculate_path_length(path)))
+        return paths
+
+    def generate_path(self):
+        path = []
+        visited = set()
+
+        current_city = np.random.randint(0, self.num_cities)
+        path.append(current_city)
+        visited.add(current_city)
+
+        for _ in range(self.num_cities - 1):
+            next_city = self.choose_next_city(current_city, visited)
+            path.append(next_city)
+            visited.add(next_city)
+            current_city = next_city
+
+        return path
+
+    def choose_next_city(self, current_city, visited):
+        probabilities = self.calculate_probabilities(current_city, visited)
+        next_city = np.random.choice(list(set(range(self.num_cities)) - visited), p=probabilities)
+        return next_city
+
+    def calculate_probabilities(self, current_city, visited):
+        pheromone_row = self.pheromone[current_city]
+        visibility = 1 / (waste_levels + 1)  # Inverse relationship between waste level and visibility
+
+        unvisited = list(set(range(self.num_cities)) - visited)
+        pheromone_row = pheromone_row[unvisited]
+        visibility = visibility[unvisited]
+
+        raw_probabilities = np.power(pheromone_row, self.alpha) * np.power(visibility, self.beta)
+        probabilities = raw_probabilities / sum(raw_probabilities)
+        return probabilities
+
+    def calculate_path_length(self, path):
+        length = 0
+        for i in range(len(path) - 1):
+            length += 1 / (waste_levels[path[i]] + 1)  # Inverse relationship between waste level and distance
+        return length
+
+    def update_pheromone(self, paths):
+        self.pheromone *= (1 - self.evaporation_rate)
+        for path, length in paths:
+            pheromone_to_add = 1 / length
+            for i in range(len(path) - 1):
+                self.pheromone[path[i], path[i + 1]] += pheromone_to_add
+                self.pheromone[path[i + 1], path[i]] += pheromone_to_add
+
+    def get_best_path(self, paths):
+        best_path, best_length = min(paths, key=lambda x: x[1])
+        return best_path, best_length
+
+
+# Visualization and Comparison
+
+def visualize_path(cities, path, title):
+    plt.figure(figsize=(8, 6))
+    plt.plot(cities[path + [path[0]]][:, 0], cities[path + [path[0]]][:, 1], 'o-')
+    plt.title(title)
+    plt.xlabel('X Coordinate')
+    plt.ylabel('Y Coordinate')
+    plt.grid(True)
+    plt.show()
+
+# Define city coordinates for visualization
+cities_coordinates = np.random.rand(num_cities, 2)
+
+# Original ACO
+aco_original = AntColony(num_ants=10, num_cities=num_cities)
+best_path_original, best_length_original = aco_original.run(iterations=100)
+
+# Modified ACO (variation)
+aco_variation = AntColony(num_ants=10, num_cities=num_cities, alpha=1.5, beta=1.5, evaporation_rate=0.3)
+best_path_variation, best_length_variation = aco_variation.run(iterations=100)
+
+# Visualize results
+visualize_path(cities_coordinates, best_path_original, 'Original ACO')
+visualize_path(cities_coordinates, best_path_variation, 'Modified ACO (Variation)')
+
+# Print results
+print("Original ACO - Best Path:", best_path_original)
+print("Original ACO - Best Path Length:", best_length_original)
+print("\nModified ACO (Variation) - Best Path:", best_path_variation)
+print("Modified ACO (Variation) - Best Path Length:", best_length_variation)

@@ -1,0 +1,106 @@
+import random
+
+class VRPInstance:
+    def __init__(self, num_customers, depot, demands, distances):
+        self.num_customers = num_customers
+        self.depot = depot
+        self.demands = demands
+        self.distances = distances
+
+class VRPSolution:
+    def __init__(self, instance, route=[]):
+        self.instance = instance
+        self.route = route
+        self.cost = self.calculate_cost()
+
+    def calculate_cost(self):
+        cost = 0
+        for i in range(len(self.route) - 1):
+            cost += self.instance.distances[self.route[i]][self.route[i + 1]]
+        return cost
+
+def generate_initial_solution(instance):
+    customers = list(range(1, instance.num_customers + 1))
+    random.shuffle(customers)
+    route = [instance.depot] + customers + [instance.depot]
+    return VRPSolution(instance, route)
+
+def local_search(solution):
+    # Implement a simple 2-opt local search for demonstration purposes
+    improved = True
+    while improved:
+        improved = False
+        for i in range(1, len(solution.route) - 2):
+            for j in range(i + 1, len(solution.route)):
+                new_route = (
+                    solution.route[:i] +
+                    solution.route[i:j][::-1] +
+                    solution.route[j:]
+                )
+                new_solution = VRPSolution(solution.instance, new_route)
+                if new_solution.cost < solution.cost:
+                    solution = new_solution
+                    improved = True
+                    break
+            if improved:
+                break
+    return solution
+
+def perturbation(solution, k):
+    # Implement a simple perturbation by shuffling a subset of customers
+    customers = solution.route[1:-1]
+    subset_size = min(k, len(customers) - 1)
+    subset = random.sample(customers, subset_size)
+    new_route = (
+        solution.route[0:1] +
+        [c for c in solution.route[1:-1] if c not in subset] +
+        solution.route[-1:] +
+        subset
+    )
+    return VRPSolution(solution.instance, new_route)
+
+def vns(instance, max_iterations, max_k):
+    current_solution = generate_initial_solution(instance)
+
+    for iteration in range(max_iterations):
+        k = 1
+        improvement_found = True
+
+        while improvement_found and k <= max_k:
+            new_solution = local_search(current_solution)
+
+            if new_solution.cost < current_solution.cost:
+                current_solution = new_solution
+                k = 1
+            else:
+                k += 1
+
+            current_solution = perturbation(current_solution, k)
+
+    return current_solution
+
+# Example Usage
+num_customers = 10
+depot = 0
+demands = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+distances = [
+    [0, 2, 4, 5, 2, 7, 9, 3, 5, 8, 10],
+    [2, 0, 6, 8, 1, 4, 2, 6, 7, 4, 3],
+    [4, 6, 0, 9, 3, 8, 2, 4, 5, 7, 8],
+    [5, 8, 9, 0, 2, 6, 7, 4, 6, 8, 2],
+    [2, 1, 3, 2, 0, 5, 6, 7, 8, 9, 3],
+    [7, 4, 8, 6, 5, 0, 3, 6, 8, 2, 5],
+    [9, 2, 2, 7, 6, 3, 0, 5, 4, 2, 7],
+    [3, 6, 4, 4, 7, 6, 5, 0, 2, 3, 6],
+    [5, 7, 5, 6, 8, 8, 4, 2, 0, 4, 9],
+    [8, 4, 7, 8, 9, 2, 2, 3, 4, 0, 5],
+    [10, 3, 8, 2, 3, 5, 7, 6, 9, 5, 0]
+]
+
+vrp_instance = VRPInstance(num_customers, depot, demands, distances)
+max_iterations = 100
+max_k = 3
+final_solution = vns(vrp_instance, max_iterations, max_k)
+
+print("Final Solution Cost:", final_solution.cost)
+print("Final Route:", final_solution.route)
